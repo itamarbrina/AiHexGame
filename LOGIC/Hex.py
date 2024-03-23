@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as f
 
-
 # noinspection GrazieInspection
 class HexBoard:
     """
@@ -16,7 +15,7 @@ class HexBoard:
     WHITE = -1
     ONGOING = -17
 
-    def __init__(self, board_size=11):
+    def __init__(self, board_size=11, queue=None):
         """
         Initialize the Hex board.
         :param board_size: Size of the board (default is 11 x 11).
@@ -176,188 +175,6 @@ class HexBoard:
         return board_str
 
 
-# class HexGame:
-#     EMPTY = 0
-#     BLACK = 1
-#     WHITE = -1
-#     ONGOING = -17
-#
-#     def __init__(self, size=11, first_player=BLACK):
-#         """
-#         Initialize the Hex game board.
-#
-#         Args:
-#             size (int): Size of the board (default is 11 x 11).
-#             first_player (int): Player to make the first move (default is BLACK).
-#         """
-#         self.size = size
-#         self.board = np.zeros((size, size), dtype=int)
-#         self.current_player = first_player
-#         self.game_history = []  # Stores the history of moves
-#
-#     @staticmethod
-#     def other_player(player):
-#         """
-#         Get the opponent of the current player.
-#
-#         Args:
-#             player (int): Current player (BLACK or WHITE).
-#
-#         Returns:
-#             int: Opponent player.
-#         """
-#         return HexGame.WHITE if player == HexGame.BLACK else HexGame.BLACK
-#
-#     def clone(self):
-#         """
-#         Create a deep copy of the game instance.
-#
-#         Returns:
-#             HexGame: Cloned instance of the game.
-#         """
-#         copy = HexGame(self.size)
-#         copy.current_player = self.current_player
-#         copy.board = np.copy(self.board)
-#         copy.game_history = self.game_history[:]
-#         return copy
-#
-#     def last_move(self):
-#         """
-#         Get the last move made in the game.
-#
-#         Returns:
-#             tuple: Last move coordinates (row, col).
-#         """
-#         if len(self.game_history) == 0:
-#             return None
-#         return self.game_history[-1]
-#
-#     def make_move(self, move):
-#         """
-#         Make a move on the board.
-#
-#         Args:
-#             move (tuple): Move coordinates (row, col).
-#         """
-#         row = move[0]
-#         col = move[1]
-#         if 0 <= row < self.size and 0 <= col < self.size and self.board[row][col] == self.EMPTY:
-#             self.board[row][col] = self.current_player
-#             self.game_history.append(move)
-#             self.current_player = self.other_player(self.current_player)
-#
-#     def unmake_move(self):
-#         """
-#         Undo the last move made in the game.
-#         """
-#         if len(self.game_history) > 0:
-#             move = self.game_history.pop()
-#             self.board[move[0]][move[1]] = self.EMPTY
-#             self.current_player = self.other_player(self.current_player)
-#
-#     def legal_moves(self):
-#         """
-#         Get all legal moves available on the board.
-#
-#         Returns:
-#             list: List of legal move coordinates (row, col).
-#         """
-#         return [(i, j) for i in range(self.size) for j in range(self.size) if self.board[i][j] == self.EMPTY]
-#
-#     def outcome(self):
-#         """
-#         Determine the outcome of the game.
-#
-#         Returns:
-#             int: Outcome of the game (BLACK, WHITE, or ONGOING).
-#         """
-#         if self.winner(self.BLACK):
-#             return self.BLACK
-#         if self.winner(self.WHITE):
-#             return self.WHITE
-#         return self.ONGOING
-#
-#     def winner(self, player):
-#         """
-#         Check if the specified player has won the game.
-#
-#         Args:
-#             player (int): Player to check for victory.
-#
-#         Returns:
-#             bool: True if the player has won, False otherwise.
-#         """
-#         if player == self.BLACK:
-#             return self.winner_black()
-#         else:
-#             return self.winner_white()
-#
-#     def winner_black(self):
-#         """
-#         Check if the BLACK player has won the game.
-#
-#         Returns:
-#             bool: True if BLACK player has won, False otherwise.
-#         """
-#         return any(self.dfs(i, 0, set()) for i in range(self.size))
-#
-#     def winner_white(self):
-#         """
-#         Check if the WHITE player has won the game.
-#
-#         Returns:
-#             bool: True if WHITE player has won, False otherwise.
-#         """
-#         return any(self.dfs(0, j, set()) for j in range(self.size))
-#
-#     def dfs(self, i, j, visited):
-#         """
-#         Depth-first search to check for winning condition.
-#
-#         Args:
-#             i (int): Row index.
-#             j (int): Column index.
-#             visited (set): Set of visited coordinates.
-#
-#         Returns:
-#             bool: True if winning condition is met, False otherwise.
-#         """
-#         if not (0 <= i < self.size and 0 <= j < self.size) or (i, j) in visited:
-#             return False
-#         if self.board[i][j] != self.current_player:
-#             return False
-#         if (self.current_player == self.BLACK and j == self.size - 1) or \
-#                 (self.current_player == self.WHITE and i == self.size - 1):
-#             return True
-#         visited.add((i, j))
-#         return any(self.dfs(i + di, j + dj, visited) for di, dj in [(1, 0), (0, 1), (-1, 1)])
-#
-#     def full_board(self):
-#         """
-#         Check if the board is full (draw condition).
-#
-#         Returns:
-#             bool: True if the board is full, False otherwise.
-#         """
-#         return np.all(self.board != self.EMPTY)
-#
-#     def __str__(self):
-#         """
-#         String representation of the game board.
-#
-#         Returns:
-#             str: String representation of the game board.
-#         """
-#         symbols = {self.EMPTY: '.', self.BLACK: 'X', self.WHITE: 'O'}
-#         board_str = ''
-#         for i in range(self.size):
-#             board_str += ' ' * (self.size - i - 1)  # Adjust spacing for hexagonal shape
-#             for j in range(self.size):
-#                 board_str += symbols[self.board[i][j]] + ' '
-#             board_str += '\n'
-#         return board_str
-#
-#
 class HexNet(nn.Module):
     def __init__(self, board_size):
         super(HexNet, self).__init__()
@@ -513,11 +330,21 @@ def test_model():
 
 
 def main():
-    # Train the network
-    hex_network = train_network()
-
-    # Test the model
-    test_model()
+    """
+    Example usage of the Hex board.
+    2 players play against each other.
+    """
+    hex_game = HexBoard(board_size=11)
+    while hex_game.check_outcome() == HexBoard.ONGOING:
+        print(hex_game)
+        row, col = map(int, input('Enter row and column: ').split())
+        hex_game.make_move((row, col))
+    print(hex_game)
+    outcome = hex_game.check_outcome()
+    if outcome == HexBoard.WHITE:
+        print('White won!')
+    elif outcome == HexBoard.BLACK:
+        print('Black won!')
 
 
 if __name__ == '__main__':

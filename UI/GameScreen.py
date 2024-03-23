@@ -1,6 +1,7 @@
 # Example file showing a circle moving on screen
 from math import sqrt
 import threading
+from queue import Queue
 import pygame as pg
 import time
 import UI.Hexagon as Hexagon
@@ -10,21 +11,23 @@ class Screen:
     """
     Class that represents the screen of the game.
     """
-    def __init__(self, board, hex_size=20, first_player_color="red", second_player_color="blue"):
+
+    def __init__(self, board, hex_size=20, first_player_color="red", second_player_color="blue", queue=None):
         """
         Initialize the Screen class.
         :param board: The board of the game.
         :param hex_size: The size of the hexagons.
         :param first_player_color: The color of the first player.
         :param second_player_color: The color of the second player.
+        :param queue: The queue that will be used to communicate with the game.
         """
-        self.update_board_flag = True
         self.hex_size = hex_size
         self.first_player_color = first_player_color
         self.second_player_color = second_player_color
         self.board = board
         self.surface = None
         self.matrix_of_hexagons = None
+        self.queue = queue
 
     def create_hexagons_grid(self):
         """
@@ -32,8 +35,8 @@ class Screen:
         :return: A matrix of hexagons.
         """
         matrix_of_hexagons = [[None for _ in range(len(self.board))] for _ in range(len(self.board))]
-        starting_pos = pg.Vector2(self.surface.get_width() / 2,
-                                  self.surface.get_height() / 2 - len(self.board) * self.hex_size * sqrt(3) / 2)
+        starting_pos = pg.Vector2(self.surface.get_width() // 2,
+                                  self.surface.get_height() // 2 - len(self.board) * self.hex_size * sqrt(3) / 2)
         point_in_matrix = [0, 0]
         counter_of_elements = 0
         reach_diagonal = False
@@ -77,7 +80,11 @@ class Screen:
                     self.matrix_of_hexagons[i][j].col_in = pg.Color(self.first_player_color)
                 elif self.board[i][j] == -1:
                     self.matrix_of_hexagons[i][j].col_in = pg.Color(self.second_player_color)
-                self.matrix_of_hexagons[i][j].draw()
+                if self.matrix_of_hexagons[i][j].draw():
+                    if self.queue is not None:
+                        self.queue.put((i, j))
+                    else:
+                        print("Hexagon at position ({}, {}) was clicked.".format(i, j))
 
     def run(self):
         """
@@ -88,10 +95,20 @@ class Screen:
         self.surface = screen
         pg.display.set_caption("Hexagon Game")
         self.matrix_of_hexagons = self.create_hexagons_grid()
-        self.surface.fill(pg.Color("white"))
+
+        screen.fill(pg.Color("red"))
+        half_width = screen.get_width() // 2 - 25
+        half_height = screen.get_height() // 2 - 25
+        left_upper = pg.Rect(0, 0, half_width, half_height)
+        right_down = pg.Rect(half_width, half_height, screen.get_width() - half_width,
+                             screen.get_height() - half_height)
+        self.surface.fill(pg.Color("blue"), left_upper)
+        self.surface.fill(pg.Color("blue"), right_down)
         running = True
         while running:
-            self.surface.fill(pg.Color("white"))
+            self.surface.fill(pg.Color("red"))
+            self.surface.fill(pg.Color("blue"), left_upper)
+            self.surface.fill(pg.Color("blue"), right_down)
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     running = False

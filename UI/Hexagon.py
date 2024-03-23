@@ -46,7 +46,7 @@ class Hexagon:
         if points[0][0] < pos[0] < points[1][0] and points[0][1] < pos[1] < points[3][1]:
             if pg.mouse.get_pressed()[0] and not self.clicked:
                 self.clicked = True
-                print(f"Clicked on hexagon {self.position_in_matrix}")
+                action = True
         if pg.mouse.get_pressed()[0] == 0:
             self.clicked = False
         return action
