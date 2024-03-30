@@ -1,7 +1,8 @@
+# import keras
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as f
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as f
 
 # noinspection GrazieInspection
 class HexBoard:
@@ -14,6 +15,7 @@ class HexBoard:
     BLACK = 1
     WHITE = -1
     ONGOING = -17
+    DRAW = 0
 
     def __init__(self, board_size=11, queue=None):
         """
@@ -103,12 +105,12 @@ class HexBoard:
         if col < self.board_size - 1:
             if self.board[row][col + 1] == player:
                 neighbors.append((row, col + 1))
-        if row > 0 and col < self.board_size - 1:
-            if self.board[row - 1][col + 1] == player:
-                neighbors.append((row - 1, col + 1))
-        if row < self.board_size - 1 and col > 0:
-            if self.board[row + 1][col - 1] == player:
-                neighbors.append((row + 1, col - 1))
+        # if row > 0 and col < self.board_size - 1:
+        #     if self.board[row - 1][col + 1] == player:
+        #         neighbors.append((row - 1, col + 1))
+        # if row < self.board_size - 1 and col > 0:
+        #     if self.board[row + 1][col - 1] == player:
+        #         neighbors.append((row + 1, col - 1))
         if row > 0 and col > 0:
             if self.board[row - 1][col - 1] == player:
                 neighbors.append((row - 1, col - 1))
@@ -152,6 +154,9 @@ class HexBoard:
         if len(self.game_history) == 0:
             return self.ONGOING
 
+        if len(self.game_history) == self.board_size ** 2:
+            return self.DRAW
+
         last_move = self.game_history[-1]
         player = self.board[last_move[0]][last_move[1]]
         if self.search_for_win_path(player, last_move):
@@ -175,177 +180,130 @@ class HexBoard:
         return board_str
 
 
-class HexNet(nn.Module):
-    def __init__(self, board_size):
-        super(HexNet, self).__init__()
-        self.board_size = board_size
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.fc1 = nn.Linear(128 * board_size * board_size, 128)
-        self.fc_value = nn.Linear(128, 1)
-        self.fc_policy = nn.Linear(128, board_size * board_size)
+# class NeuralNetwork:
+#     def __init__(self, input_shape):
+#         self.model = self.build_model(input_shape)
+#
+#     def build_model(self, input_shape):
+#         model = keras.Sequential([
+#             keras.layers.Input(input_shape),
+#             keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+#             keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+#             keras.layers.Flatten(),
+#             keras.layers.Dense(128, activation='relu'),
+#             keras.layers.Dense(1, activation='tanh')
+#         ])
+#         model.compile(optimizer='adam', loss='mse')
+#         return model
+#
+#     def predict(self, state):
+#         return self.model.predict(np.expand_dims(state, axis=0))[0][0]
+#
+#
+# class MCTSNode:
+#     def __init__(self, state):
+#         self.state = state
+#         self.children = []
+#         self.visits = 0
+#         self.value = 0
+#
+#     def expand(self):
+#         legal_moves = self.state.legal_moves()
+#         for move in legal_moves:
+#             new_state = self.state.clone()
+#             new_state.make_move(move)
+#             child_node = MCTSNode(new_state)
+#             self.children.append(child_node)
+#
+#     def select_child(self, exploration_constant=1.0):
+#         values = [child.value + exploration_constant * np.sqrt(np.log(self.visits) / (child.visits + 1)) for child in
+#                   self.children]
+#         return self.children[np.argmax(values)]
+#
+#     def update(self, value):
+#         self.visits += 1
+#         self.value += value
+#
+#
+# class MCTS:
+#     def __init__(self, root_state, neural_network):
+#         self.root = MCTSNode(root_state)
+#         self.neural_network = neural_network
+#
+#     def search(self, num_simulations=100):
+#         for _ in range(num_simulations):
+#             node = self.root
+#             while node.children:
+#                 node = node.select_child()
+#             if node.visits == 0:
+#                 node.expand()  # Ensure that the node is expanded before selecting a child
+#             if node.children:
+#                 value = self.simulate(node.state)
+#                 node.update(value)
+#
+#     def simulate(self, state):
+#         _state = state.clone()
+#         while _state.check_outcome() == _state.ONGOING:
+#             legal_moves = _state.legal_moves()
+#             move = legal_moves[np.random.randint(len(legal_moves))]
+#             _state.make_move(move)
+#         outcome = _state.check_outcome()
+#         return outcome
+#
+#     def evaluate(self, state):
+#         return self.neural_network.predict(state.board)
+#
+#     def get_best_move(self):
+#         best_move = max(self.root.children, key=lambda x: x.visits)
+#         return best_move.state.last_move()
+#
+#
+# # Example usage:
+# # Main function to simulate a game between a player and AI
+# def main():
+#     board = HexBoard(board_size=11)
+#     nn = NeuralNetwork(input_shape=(board.board_size, board.board_size, 1))
+#     mcts = MCTS(board, nn)
+#
+#     print("Welcome to Hex! You are playing as BLACK.")
+#     print(board)  # Print initial board state
+#
+#     while board.check_outcome() == board.ONGOING:
+#         if board.current_player == board.BLACK:
+#             # Player's turn
+#             while True:
+#                 try:
+#                     row = int(input("Enter the row (0-10): "))
+#                     col = int(input("Enter the column (0-10): "))
+#                     move = (row, col)
+#                     if move in board.legal_moves():
+#                         break
+#                     else:
+#                         print("Invalid move. Please try again.")
+#                 except ValueError:
+#                     print("Invalid input. Please enter integers.")
+#
+#             board.make_move(move)
+#             print(board)  # Print updated board state
+#
+#         else:
+#             # AI's turn
+#             print("AI is thinking...")
+#             mcts.search(num_simulations=500)
+#             best_move = mcts.get_best_move()
+#             board.make_move(best_move)
+#             print("AI's move:", best_move)
+#             print(board)  # Print updated board state
+#
+#     # Game outcome
+#     outcome = board.check_outcome()
+#     if outcome == board.BLACK:
+#         print("Congratulations! You win!")
+#     elif outcome == board.WHITE:
+#         print("AI wins. Better luck next time!")
+#     else:
+#         print("It's a draw.")
 
-    def forward(self, x):
-        x = f.relu(self.conv1(x))
-        x = f.relu(self.conv2(x))
-        x = f.relu(self.conv3(x))
-        x = x.view(-1, 128 * self.board_size * self.board_size)
-        x = f.relu(self.fc1(x))
-        value = torch.tanh(self.fc_value(x))
-        policy = f.softmax(self.fc_policy(x), dim=1)
-        return value, policy
-
-
-class PUCT:
-    def __init__(self, network, c=1.0):
-        self.network = network
-        self.c = c
-
-    def search(self, game_state):
-        # PUCT search algorithm
-
-        # Get the current player
-        player = game_state.current_player
-
-        # Get the legal moves
-        legal_moves = game_state.legal_moves()
-
-        # Initialize the action values
-        action_values = torch.zeros(len(legal_moves))
-
-        # Get the current board state
-        board_state = torch.tensor(game_state.board, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-
-        # Get the value and policy from the network
-        value, policy = self.network(board_state)
-
-        # Get the value and policy from the network
-        value = value.item()
-        policy = policy.squeeze().detach().numpy()
-
-        # Calculate the action values
-        for i, move in enumerate(legal_moves):
-            action_values[i] = (1 - self.c) * policy[move[0] * game_state.board_size + move[1]] + self.c * value
-
-        # Get the best action
-        best_action = legal_moves[action_values.argmax()]
-
-        # Return the best action
-        return best_action
-
-    def update(self, game_state, action):
-        # Update the game state with the selected action
-        game_state.make_move(action)
-
-        # Return the updated game state
-        return game_state
-
-
-def train_network(board_size=11):
-    # Define hyperparameters
-    learning_rate = 0.001
-    num_epochs = 10
-    batch_size = 64
-
-    # Initialize game, network, optimizer
-    hex_game = HexBoard()  # Pass board_size here
-    hex_network = HexNet(board_size=board_size)  # Pass board_size to HexNet
-    puct = PUCT(network=hex_network)
-    optimizer = torch.optim.Adam(hex_network.parameters(), lr=learning_rate)
-
-    # Training loop
-    for epoch in range(num_epochs):
-        # Generate training data through self-play
-        training_data = []
-        for _ in range(batch_size):
-            game_state = hex_game.clone()
-            while game_state.check_outcome() == HexBoard.ONGOING:
-                action = puct.search(game_state)
-                game_state = puct.update(game_state, action)
-            training_data.append(game_state)
-
-        # Train the network
-        for game_state in training_data:
-            # Get the current player
-            player = game_state.current_player
-
-            # Get the legal moves
-            legal_moves = game_state.legal_moves()
-
-            # Get the current board state
-            board_state = torch.tensor(game_state.board, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-
-            # Get the value and policy from the network
-            value, policy = hex_network(board_state)
-
-            # Calculate the target value and policy
-            target_value = torch.tensor(game_state.check_outcome(), dtype=torch.float32)
-            target_policy = torch.zeros(board_size * board_size)  # Use board_size here
-            for move in legal_moves:
-                target_policy[move[0] * board_size + move[1]] = 1  # Use board_size here
-            target_policy = target_policy / target_policy.sum()
-
-            # Calculate the loss
-            loss = f.mse_loss(value, target_value) + f.kl_div(policy.log(), target_policy)
-
-            # Backpropagation
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            # Print the loss
-            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
-
-    # Save the trained network
-    torch.save(hex_network.state_dict(), 'hex_network.pth')
-
-    # Return the trained network
-    return hex_network
-
-
-def test_model():
-    # Load trained model
-    hex_network = HexNet(board_size=11)
-    hex_network.load_state_dict(torch.load('hex_network.pth'))
-    hex_network.eval()
-
-    # Test against human players or MCTS
-    hex_game = HexBoard(board_size=11)
-    puct = PUCT(network=hex_network)
-    while hex_game.check_outcome() == HexBoard.ONGOING:
-        print(hex_game)
-        if hex_game.current_player == HexBoard.BLACK:
-            action = puct.search(hex_game)
-            hex_game.make_move(action)
-        else:
-            row, col = map(int, input('Enter row and column: ').split())
-            hex_game.make_move((row, col))
-    print(hex_game)
-    outcome = hex_game.check_outcome()
-    if outcome == HexBoard.WHITE:
-        print('White won!')
-    elif outcome == HexBoard.BLACK:
-        print('Black won!')
-
-
-def main():
-    """
-    Example usage of the Hex board.
-    2 players play against each other.
-    """
-    hex_game = HexBoard(board_size=11)
-    while hex_game.check_outcome() == HexBoard.ONGOING:
-        print(hex_game)
-        row, col = map(int, input('Enter row and column: ').split())
-        hex_game.make_move((row, col))
-    print(hex_game)
-    outcome = hex_game.check_outcome()
-    if outcome == HexBoard.WHITE:
-        print('White won!')
-    elif outcome == HexBoard.BLACK:
-        print('Black won!')
-
-
-if __name__ == '__main__':
-    main()
+# # Run the main function
+# if __name__ == "__main__":
+#     main()

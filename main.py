@@ -19,4 +19,3 @@ elif hex_game.check_outcome() == hex_game.WHITE:
     print("White wins")
 
 t1.join()
-
