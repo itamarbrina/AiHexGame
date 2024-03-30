@@ -2,6 +2,9 @@ import LOGIC.Hex as Hex
 import random
 import math
 import numpy as np
+from queue import Queue
+from threading import Thread
+import UI.GameScreen as GameScreen
 
 """
 Monte Carlo Tree Search
@@ -82,7 +85,7 @@ class MCTS:
     """
     Runs the Monte Carlo Tree Search algorithm.
     """
-    def __init__(self, board, iterations=5):
+    def __init__(self, board, iterations=1000):
         self.board = board
         self.iterations = iterations
 
@@ -103,51 +106,16 @@ class MCTS:
             result = node.simulate()
             # Backpropagation
             node.backpropagation(result)
-        # print("all children successes: ", [[child.visits, child.move] for child in root.children])
-        # print ("best child: ", max(root.children, key=lambda c: c.wins / c.visits if c.visits > 0 else 0).move)
-        return max(root.children, key=lambda c: c.wins / c.visits if c.visits > 0 else 0).move
-
-
-from queue import Queue
-from threading import Thread
-import UI.GameScreen as GameScreen
+        return max(root.children, key=lambda x: x.visits).move
 
 
 def main():
     """
-    Run the MCTS algorithm.
+    simple example of using MCTS for Hex.
     """
-    # board = Hex.HexBoard(6)
-    # mcts = MCTS(board, iterations=1000)
-    # print(board)
-    # while board.check_outcome() == Hex.HexBoard.ONGOING:
-    #     if board.current_player == Hex.HexBoard.BLACK:
-    #         move = mcts.choose_move()
-    #     else:
-    #         # move = mcts.choose_move(board)
-    #         while True:
-    #             try:
-    #                 row = int(input("Enter the row (0-10): "))
-    #                 col = int(input("Enter the column (0-10): "))
-    #                 move = (row, col)
-    #                 if move in board.legal_moves():
-    #                     break
-    #                 else:
-    #                     print("Invalid move. Please try again.")
-    #             except ValueError:
-    #                 print("Invalid input. Please enter integers.")
-    #     board.make_move(move)
-    #     # os.system("cls")
-    #     print(board)
-    # if board.check_outcome() == Hex.HexBoard.DRAW:
-    #     print("It's a draw!")
-    # elif board.check_outcome() == Hex.HexBoard.WHITE:
-    #     print("O wins!")
-    # else:
-    #     print("X wins!")
     q = Queue()
-    mcts = MCTS(Hex.HexBoard(11), iterations=1000)
-    hex_game = Hex.HexBoard(11)
+    mcts = MCTS(Hex.HexBoard(6), iterations=2500)
+    hex_game = Hex.HexBoard(6)
     game_screen = GameScreen.Screen(hex_game.board, 20, "red", "blue", q)
     t1 = Thread(target=game_screen.run)
     t1.start()
