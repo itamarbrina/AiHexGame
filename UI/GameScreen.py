@@ -28,6 +28,8 @@ class Screen:
         self.surface = None
         self.matrix_of_hexagons = None
         self.queue = queue
+        self.game_ends = False
+        self.winner = None
 
     def create_hexagons_grid(self):
         """
@@ -86,6 +88,20 @@ class Screen:
                     else:
                         print("Hexagon at position ({}, {}) was clicked.".format(i, j))
 
+    def render_end_game(self, winner):
+        """
+        Render the end game screen.
+        :param winner: The winner of the game.
+        """
+        font = pg.font.Font(None, 36)
+        background = pg.Surface((self.surface.get_width() // 4, self.surface.get_height() // 4))
+        text = font.render("The winner is: " + winner, True, pg.Color("white"))
+        text_rect = text.get_rect(center=(background.get_width() // 2, background.get_height() // 2))
+        background.fill(pg.Color("black"))
+        background.blit(text, text_rect)
+        self.surface.blit(background, (self.surface.get_width() // 2 - background.get_width() // 2,
+                                       self.surface.get_height() // 2 - background.get_height() // 2))
+
     def run(self):
         """
         Run the game.
@@ -115,6 +131,11 @@ class Screen:
             self.render_board()
             pg.display.flip()  # Update the display
             pg.time.Clock().tick(60)  # Cap the frame rate
+            if self.game_ends:
+                self.render_end_game(self.winner)
+                pg.display.flip()
+                time.sleep(2)
+                running = False
         pg.quit()
 
 

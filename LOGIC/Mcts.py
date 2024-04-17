@@ -5,6 +5,7 @@ import numpy as np
 from queue import Queue
 from threading import Thread
 import UI.GameScreen as GameScreen
+import time
 
 """
 Monte Carlo Tree Search
@@ -33,7 +34,8 @@ class Node:
         Select a child node using the UCT (Upper Confidence Bound for Trees) formula.
         """
         assert self.visits > 0, "Parent has not been visited"
-        c = math.sqrt(2)
+        # c = math.sqrt(2)
+        c = 4
         # Calculate UCT score for each child and select the child with the highest score
         best_score = float('-inf')
         best_child = None
@@ -85,13 +87,21 @@ class MCTS:
     """
     Runs the Monte Carlo Tree Search algorithm.
     """
-    def __init__(self, board, iterations=1000):
+
+    def __init__(self, board, iterations=2000):
         self.board = board
         self.iterations = iterations
 
     def choose_move(self):
         """
         Choose the best move using the MCTS algorithm.
+        """
+        root = self.build_tree()
+        return max(root.children, key=lambda x: x.visits).move
+
+    def build_tree(self):
+        """
+        Build the Monte Carlo Tree.
         """
         root = Node(self.board)
         for _ in range(self.iterations):
@@ -106,7 +116,7 @@ class MCTS:
             result = node.simulate()
             # Backpropagation
             node.backpropagation(result)
-        return max(root.children, key=lambda x: x.visits).move
+        return root
 
 
 def main():
@@ -127,10 +137,15 @@ def main():
         else:
             move = q.get(True, None)
         hex_game.make_move(move)
+        time.sleep(0.2)  # sleep for visual effect
+    time.sleep(1)
     if hex_game.check_outcome() == hex_game.BLACK:
-        print("Black wins")
-    elif hex_game.check_outcome() == hex_game.WHITE:
-        print("White wins")
+        game_screen.winner = "RED"
+        print("Red wins")
+    else:
+        game_screen.winner = "BLUE"
+        print("Blue wins")
+    game_screen.game_ends = True
 
     t1.join()
 

@@ -1,8 +1,5 @@
-# import keras
 import numpy as np
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as f
+
 
 # noinspection GrazieInspection
 class HexBoard:
@@ -67,6 +64,14 @@ class HexBoard:
             self.game_history.append(move)
             self.current_player = self.other_player(self.current_player)
 
+    def action_to_move(self, action):
+        """
+        Convert an action to a move.
+        :param action: The action to convert.
+        :return: The move.
+        """
+        return action // self.board_size, action % self.board_size
+
     def unmake_move(self):
         """
         Undo the last move made in the game.
@@ -105,12 +110,6 @@ class HexBoard:
         if col < self.board_size - 1:
             if self.board[row][col + 1] == player:
                 neighbors.append((row, col + 1))
-        # if row > 0 and col < self.board_size - 1:
-        #     if self.board[row - 1][col + 1] == player:
-        #         neighbors.append((row - 1, col + 1))
-        # if row < self.board_size - 1 and col > 0:
-        #     if self.board[row + 1][col - 1] == player:
-        #         neighbors.append((row + 1, col - 1))
         if row > 0 and col > 0:
             if self.board[row - 1][col - 1] == player:
                 neighbors.append((row - 1, col - 1))
@@ -180,130 +179,26 @@ class HexBoard:
         return board_str
 
 
-# class NeuralNetwork:
-#     def __init__(self, input_shape):
-#         self.model = self.build_model(input_shape)
-#
-#     def build_model(self, input_shape):
-#         model = keras.Sequential([
-#             keras.layers.Input(input_shape),
-#             keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-#             keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-#             keras.layers.Flatten(),
-#             keras.layers.Dense(128, activation='relu'),
-#             keras.layers.Dense(1, activation='tanh')
-#         ])
-#         model.compile(optimizer='adam', loss='mse')
-#         return model
-#
-#     def predict(self, state):
-#         return self.model.predict(np.expand_dims(state, axis=0))[0][0]
-#
-#
-# class MCTSNode:
-#     def __init__(self, state):
-#         self.state = state
-#         self.children = []
-#         self.visits = 0
-#         self.value = 0
-#
-#     def expand(self):
-#         legal_moves = self.state.legal_moves()
-#         for move in legal_moves:
-#             new_state = self.state.clone()
-#             new_state.make_move(move)
-#             child_node = MCTSNode(new_state)
-#             self.children.append(child_node)
-#
-#     def select_child(self, exploration_constant=1.0):
-#         values = [child.value + exploration_constant * np.sqrt(np.log(self.visits) / (child.visits + 1)) for child in
-#                   self.children]
-#         return self.children[np.argmax(values)]
-#
-#     def update(self, value):
-#         self.visits += 1
-#         self.value += value
-#
-#
-# class MCTS:
-#     def __init__(self, root_state, neural_network):
-#         self.root = MCTSNode(root_state)
-#         self.neural_network = neural_network
-#
-#     def search(self, num_simulations=100):
-#         for _ in range(num_simulations):
-#             node = self.root
-#             while node.children:
-#                 node = node.select_child()
-#             if node.visits == 0:
-#                 node.expand()  # Ensure that the node is expanded before selecting a child
-#             if node.children:
-#                 value = self.simulate(node.state)
-#                 node.update(value)
-#
-#     def simulate(self, state):
-#         _state = state.clone()
-#         while _state.check_outcome() == _state.ONGOING:
-#             legal_moves = _state.legal_moves()
-#             move = legal_moves[np.random.randint(len(legal_moves))]
-#             _state.make_move(move)
-#         outcome = _state.check_outcome()
-#         return outcome
-#
-#     def evaluate(self, state):
-#         return self.neural_network.predict(state.board)
-#
-#     def get_best_move(self):
-#         best_move = max(self.root.children, key=lambda x: x.visits)
-#         return best_move.state.last_move()
-#
-#
-# # Example usage:
-# # Main function to simulate a game between a player and AI
-# def main():
-#     board = HexBoard(board_size=11)
-#     nn = NeuralNetwork(input_shape=(board.board_size, board.board_size, 1))
-#     mcts = MCTS(board, nn)
-#
-#     print("Welcome to Hex! You are playing as BLACK.")
-#     print(board)  # Print initial board state
-#
-#     while board.check_outcome() == board.ONGOING:
-#         if board.current_player == board.BLACK:
-#             # Player's turn
-#             while True:
-#                 try:
-#                     row = int(input("Enter the row (0-10): "))
-#                     col = int(input("Enter the column (0-10): "))
-#                     move = (row, col)
-#                     if move in board.legal_moves():
-#                         break
-#                     else:
-#                         print("Invalid move. Please try again.")
-#                 except ValueError:
-#                     print("Invalid input. Please enter integers.")
-#
-#             board.make_move(move)
-#             print(board)  # Print updated board state
-#
-#         else:
-#             # AI's turn
-#             print("AI is thinking...")
-#             mcts.search(num_simulations=500)
-#             best_move = mcts.get_best_move()
-#             board.make_move(best_move)
-#             print("AI's move:", best_move)
-#             print(board)  # Print updated board state
-#
-#     # Game outcome
-#     outcome = board.check_outcome()
-#     if outcome == board.BLACK:
-#         print("Congratulations! You win!")
-#     elif outcome == board.WHITE:
-#         print("AI wins. Better luck next time!")
-#     else:
-#         print("It's a draw.")
+def main():
+    """
+    example of using HexBoard class.
+    """
+    hex_game = HexBoard(11)
+    while hex_game.check_outcome() == hex_game.ONGOING:
+        print(hex_game)
+        row = int(input("Enter the row (0-10): "))
+        col = int(input("Enter the column (0-10): "))
+        move = (row, col)
+        hex_game.make_move(move)
+    print(hex_game)
+    if hex_game.check_outcome() == hex_game.BLACK:
+        print("Black wins")
+    elif hex_game.check_outcome() == hex_game.WHITE:
+        print("White wins")
+    else:
+        print("Draw")
 
-# # Run the main function
-# if __name__ == "__main__":
-#     main()
+
+if __name__ == '__main__':
+    print("Running example of HexBoard class.")
+    main()
