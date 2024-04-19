@@ -74,7 +74,7 @@ class NeuralNetwork:
         while hex_game.check_outcome() == hex_game.ONGOING:
             board_state = np.copy(hex_game.board)
             memory_boards.append(board_state)
-            root = Mcts.MCTS(Hex.HexBoard(self.board_size), iterations=10000).build_tree()
+            root = Mcts.MCTS(Hex.HexBoard(self.board_size), iterations=2500).build_tree()
             pi = np.array(self.board_size ** 2 * [0])
             for child in root.children:
                 pi[child.move[0] * self.board_size + child.move[1]] = child.visits
@@ -89,8 +89,8 @@ class NeuralNetwork:
         elif z == hex_game.EMPTY:
             z = 0.5
         training_data = []
-        memory_boards = memory_boards[::-1]
-        memory_pi = memory_pi[::-1]
+        # memory_boards = memory_boards[::-1]
+        # memory_pi = memory_pi[::-1]
         for pi, board in zip(memory_pi, memory_boards):
             state = self.get_encoded_board(board)
             training_data.append([state, z, pi])
@@ -107,13 +107,12 @@ class NeuralNetwork:
         for _ in range(num_of_epochs):
             print("iteration: ", _ + 1, " out of ", num_of_epochs)
             training_data += self.create_training_data()
-        print (training_data)
-        print(training_data.__len__())
+        self.save_train_data(training_data)
         states = np.array([x[0] for x in training_data])
         z = np.array([x[1] for x in training_data])
         PI = np.array([x[2] for x in training_data])
         print(states.shape)
-        self.model.fit(states, [z, PI], epochs=20, batch_size=32)
+        self.model.fit(states, [z, PI], epochs=30000, batch_size=32)
         self.model.save_weights("model.weights.h5")
 
     def fetch_weights(self):
@@ -129,6 +128,17 @@ class NeuralNetwork:
         :return: The model.
         """
         return self.model
+
+    def save_train_data(self, training_data):
+        """
+        Save the training data to a file.
+        :param training_data: The training data.
+        """
+        with open("training_data.txt", "w") as file:
+            for data in training_data:
+                file.write(str(data) + "\n")
+        # close the file
+        file.close()
 
 
 def main():

@@ -16,14 +16,13 @@ Monte Carlo Tree Search
 
 
 class Puct_Node:
-    def __init__(self, board, move=None, parent=None, prior=0):
+    def __init__(self, board, move=None, parent=None, prior=0, wins_avg=0):
         self.visits = 0
-        self.wins = 0
+        self.wins_avg = wins_avg
         self.board = board
         self.parent = parent
         self.move = move
         self.prior = prior
-        self.q = 0
         self.children = []
         self.untried_actions = board.legal_moves()
         random.shuffle(self.untried_actions)
@@ -37,7 +36,7 @@ class Puct_Node:
     def select_child(self):
         """
         Select a child node using the Puct (predictor + UCT) formula:
-        PUCT(a) = q + c * p * sqrt(N) / (1 + n)
+        PUCT(a) = wins_avg + c * p * sqrt(N) / (1 + n)
         where:
         q = exploitation term (average reward of the child node)
         p = prior probability of selecting the child node
@@ -46,51 +45,55 @@ class Puct_Node:
         c = exploration parameter
         """
         assert self.visits > 0, "Parent has not been visited"
-        c = 4
+        c = math.sqrt(2)
         best_score = float('-inf')
         best_child = None
         for child in self.children:
-            exploitation = child.wins / child.visits if child.visits > 0 else 0
-            exploration = self.prior * math.sqrt(self.visits) / (1 + child.visits)
-            puct_score = exploitation + c * exploration
+            puct_score = child.wins_avg + c * self.prior * math.sqrt(self.visits) / (1 + child.visits)
             if puct_score > best_score:
                 best_score = puct_score
                 best_child = child
         return best_child
 
-    def expand(self, pi_array):
+    def expand(self, pi_array, wins=0):
         """
         Expand the node by adding a new child node.
         """
         pi_array = pi_array.flatten()
-        for action, prior in enumerate(pi_array):
-            print(prior)
-            if prior > 0:
-                next_board = self.board.clone()
-                col, row = action % self.board.board_size, action // self.board.board_size
-                next_board.make_move((row, col))
-                child_node = Puct_Node(next_board, action, self, prior)
-                self.children.append(child_node)
+        for action, prior in zip(self.untried_actions, pi_array):
+            next_board = self.board.clone()
+            next_board.make_move(action)
+            child_node = Puct_Node(next_board, action, self, prior, wins)
+            self.children.append(child_node)
+        # for action, prior in enumerate(pi_array):
+        #     print(prior)
+        #     if prior > 0:
+        #         next_board = self.board.clone()
+        #         col, row = action % self.board.board_size, action // self.board.board_size
+        #         next_board.make_move((row, col))
+        #         child_node = Puct_Node(next_board, action, self, prior)
+        #         self.children.append(child_node)
         self.untried_actions = []
 
-    def simulate(self):
-        """
-        Simulate a random game from the current node.
-        """
-        board = self.board.clone()
-        while board.check_outcome() == Hex.HexBoard.ONGOING:
-            move = board.legal_moves()[np.random.randint(0, len(board.legal_moves()))]
-            board.make_move(move)
-        return board.check_outcome()
+    # def simulate(self):
+    #     """
+    #     Simulate a random game from the current node.
+    #     """
+    #     board = self.board.clone()
+    #     while board.check_outcome() == Hex.HexBoard.ONGOING:
+    #         move = board.legal_moves()[np.random.randint(0, len(board.legal_moves()))]
+    #         board.make_move(move)
+    #     return board.check_outcome()
 
-    def backpropagation(self, result):
+    def backpropagation(self):
         """
         Updates the node's statistics after a simulation.
         """
         self.visits += 1
-        self.q += (result - self.q) / self.visits
+        # self.wins_avg += (result - self.wins_avg) / self.visits
         if self.parent:
-            self.parent.backpropagation(result)
+            self.parent.wins_avg += (self.wins_avg - self.parent.wins_avg) / self.parent.visits
+            self.parent.backpropagation()
 
 
 class PuctMCTS:
@@ -116,7 +119,8 @@ class PuctMCTS:
             # Expansion
             if not node.is_terminal():
                 pi, v = self.neural_network.model.predict(
-                    node.board.get_encoded_board().reshape(1, 3, self.board.board_size, self.board.board_size)
+                    self.neural_network.get_encoded_board(node.board.board).reshape(1, 3, self.board.board_size,
+                                                                                    self.board.board_size)
                 )
                 valid_moves = node.board.legal_moves()
                 mask = np.zeros([self.board.board_size] * 2)
@@ -125,10 +129,9 @@ class PuctMCTS:
                 mask = mask.flatten()
                 pi = pi * mask
                 pi = pi / np.sum(pi)
-                val = v[0][0]
                 node.expand(pi)
             # Backpropagation
-            node.backpropagation(val)
+            node.backpropagation()
         # Choose the best move based on the number of visits
         best_child = max(root.children, key=lambda x: x.visits)
         return best_child.move
@@ -139,7 +142,7 @@ class PuctMCTS:
             encoded_board.reshape(1, 3, self.board.board_size, self.board.board_size)
         )
         pi = self.neural_network.get_decoded_policy(pi, self.board)
-        print(pi)
+        # print(pi)
         print(self.board)
         best_move = np.argmax(pi)
         print(best_move)
@@ -153,9 +156,8 @@ def main():
     """
     board_size = 9
     neural_network = NN.NeuralNetwork(board_size)
-    puct = PuctMCTS(Hex.HexBoard(board_size), iterations=1000, neural_network=neural_network)
+    puct = PuctMCTS(Hex.HexBoard(board_size), iterations=100, neural_network=neural_network)
     neural_network.fetch_weights()
-    print(neural_network.model.weights)
     q = Queue()
     hex_game = Hex.HexBoard(9)
     game_screen = GameScreen.Screen(hex_game.board, 20, "red", "blue", q)
@@ -165,7 +167,8 @@ def main():
     while hex_game.check_outcome() == hex_game.ONGOING:
         if hex_game.current_player == Hex.HexBoard.BLACK:
             puct.board = hex_game
-            move = puct.choose_move_greedy()
+            # move = puct.choose_move_greedy()
+            move = puct.choose_move()
         else:
             move = q.get(True, None)
         hex_game.make_move(move)
