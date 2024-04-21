@@ -24,8 +24,6 @@ class Puct_Node:
         self.move = move
         self.prior = prior
         self.children = []
-        self.untried_actions = board.legal_moves()
-        random.shuffle(self.untried_actions)
 
     def is_terminal(self):
         """
@@ -49,31 +47,25 @@ class Puct_Node:
         best_score = float('-inf')
         best_child = None
         for child in self.children:
-            puct_score = child.wins_avg + c * self.prior * math.sqrt(self.visits) / (1 + child.visits)
+            puct_score = child.wins_avg + c * child.prior * math.sqrt(self.visits) / (1 + child.visits)
             if puct_score > best_score:
                 best_score = puct_score
                 best_child = child
         return best_child
 
-    def expand(self, pi_array, wins=0):
+    def expand(self, pi):
         """
         Expand the node by adding a new child node.
         """
-        pi_array = pi_array.flatten()
-        for action, prior in zip(self.untried_actions, pi_array):
-            next_board = self.board.clone()
-            next_board.make_move(action)
-            child_node = Puct_Node(next_board, action, self, prior, wins)
-            self.children.append(child_node)
-        # for action, prior in enumerate(pi_array):
-        #     print(prior)
-        #     if prior > 0:
-        #         next_board = self.board.clone()
-        #         col, row = action % self.board.board_size, action // self.board.board_size
-        #         next_board.make_move((row, col))
-        #         child_node = Puct_Node(next_board, action, self, prior)
-        #         self.children.append(child_node)
-        self.untried_actions = []
+        pi = pi.flatten()
+        for action, prob in enumerate(pi):
+            if prob > 0:
+                next_board = self.board.clone()
+                row = action // self.board.board_size
+                col = action % self.board.board_size
+                next_board.make_move((col, row))
+                child_node = Puct_Node(next_board, move=(col, row), parent=self, prior=prob)
+                self.children.append(child_node)
 
     # def simulate(self):
     #     """
@@ -85,15 +77,18 @@ class Puct_Node:
     #         board.make_move(move)
     #     return board.check_outcome()
 
-    def backpropagation(self):
+    def backpropagation(self, value):
         """
         Updates the node's statistics after a simulation.
         """
         self.visits += 1
-        # self.wins_avg += (result - self.wins_avg) / self.visits
+        if self.board.current_player == Hex.HexBoard.WHITE:
+            value = 1 - value
+
+        self.wins_avg += (value - self.wins_avg) / self.visits
+
         if self.parent:
-            self.parent.wins_avg += (self.wins_avg - self.parent.wins_avg) / self.parent.visits
-            self.parent.backpropagation()
+            self.parent.backpropagation(value)
 
 
 class PuctMCTS:
@@ -113,25 +108,28 @@ class PuctMCTS:
         root = Puct_Node(self.board)
         for _ in range(self.iterations):
             node = root
+            value = node.board.check_outcome()
+            if value == node.board.current_player:
+                value = 1
+            elif value == node.board.other_player(node.board.current_player):
+                value = 0
+            else:
+                value = 0.5
+
             # Selection
-            while not node.is_terminal() and not node.untried_actions:
+            while not node.is_terminal() and node.children != []:
                 node = node.select_child()
             # Expansion
-            if not node.is_terminal():
-                pi, v = self.neural_network.model.predict(
-                    self.neural_network.get_encoded_board(node.board.board).reshape(1, 3, self.board.board_size,
-                                                                                    self.board.board_size)
+            if not node.is_terminal() and node.children == []:
+                value, pi = self.neural_network.model.predict(
+                    self.neural_network.get_encoded_board(node.board.board)
+                    .reshape(1, 3, self.board.board_size, self.board.board_size)
                 )
-                valid_moves = node.board.legal_moves()
-                mask = np.zeros([self.board.board_size] * 2)
-                for col, row in valid_moves:
-                    mask[row][col] = 1
-                mask = mask.flatten()
-                pi = pi * mask
-                pi = pi / np.sum(pi)
+                pi = self.neural_network.get_decoded_policy(pi, node.board)
                 node.expand(pi)
+                value = value[0][0]
             # Backpropagation
-            node.backpropagation()
+            node.backpropagation(value)
         # Choose the best move based on the number of visits
         best_child = max(root.children, key=lambda x: x.visits)
         return best_child.move
@@ -142,7 +140,8 @@ class PuctMCTS:
             encoded_board.reshape(1, 3, self.board.board_size, self.board.board_size)
         )
         pi = self.neural_network.get_decoded_policy(pi, self.board)
-        # print(pi)
+        print(v)
+        print(pi)
         print(self.board)
         best_move = np.argmax(pi)
         print(best_move)
@@ -154,12 +153,12 @@ def main():
     """
     simple example of using MCTS for Hex.
     """
-    board_size = 9
+    board_size = 5
     neural_network = NN.NeuralNetwork(board_size)
-    puct = PuctMCTS(Hex.HexBoard(board_size), iterations=100, neural_network=neural_network)
-    neural_network.fetch_weights()
+    neural_network.fetch_model()
+    puct = PuctMCTS(Hex.HexBoard(board_size), iterations=150, neural_network=neural_network)
     q = Queue()
-    hex_game = Hex.HexBoard(9)
+    hex_game = Hex.HexBoard(board_size)
     game_screen = GameScreen.Screen(hex_game.board, 20, "red", "blue", q)
     t1 = Thread(target=game_screen.run)
     t1.start()
@@ -172,8 +171,8 @@ def main():
         else:
             move = q.get(True, None)
         hex_game.make_move(move)
-        time.sleep(0.2)  # sleep for visual effect
-    time.sleep(1)
+        time.sleep(0.02)  # sleep for visual effect
+    time.sleep(0.1)
     if hex_game.check_outcome() == hex_game.BLACK:
         game_screen.winner = "RED"
         print("Red wins")

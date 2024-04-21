@@ -94,13 +94,12 @@ class Screen:
         :param winner: The winner of the game.
         """
         font = pg.font.Font(None, 36)
-        background = pg.Surface((self.surface.get_width() // 4, self.surface.get_height() // 4))
+        background = pg.Surface((self.surface.get_width() // 4, 40))
         text = font.render("The winner is: " + winner, True, pg.Color("white"))
         text_rect = text.get_rect(center=(background.get_width() // 2, background.get_height() // 2))
         background.fill(pg.Color("black"))
         background.blit(text, text_rect)
-        self.surface.blit(background, (self.surface.get_width() // 2 - background.get_width() // 2,
-                                       self.surface.get_height() // 2 - background.get_height() // 2))
+        self.surface.blit(background, (self.surface.get_width() // 2 - background.get_width() // 2, 25))
 
     def run(self):
         """
@@ -114,7 +113,7 @@ class Screen:
 
         screen.fill(pg.Color("red"))
         half_width = screen.get_width() // 2 - 25
-        half_height = screen.get_height() // 2 - 25
+        half_height = screen.get_height() // 2 - 15
         left_upper = pg.Rect(0, 0, half_width, half_height)
         right_down = pg.Rect(half_width, half_height, screen.get_width() - half_width,
                              screen.get_height() - half_height)
@@ -129,13 +128,11 @@ class Screen:
                 if event.type == pg.QUIT:
                     running = False
             self.render_board()
-            pg.display.flip()  # Update the display
-            pg.time.Clock().tick(60)  # Cap the frame rate
             if self.game_ends:
                 self.render_end_game(self.winner)
-                pg.display.flip()
-                time.sleep(2)
-                running = False
+            pg.display.flip()  # Update the display
+            pg.time.Clock().tick(60)  # Cap the frame rate
+
         pg.quit()
 
 

@@ -3,6 +3,14 @@ import numpy as np
 import LOGIC.Puct as Puct
 import LOGIC.Hex as Hex
 import LOGIC.Mcts as Mcts
+from tqdm import tqdm
+
+
+def softmax(x, axis=-1):
+    kw = dict(axis=axis, keepdims=True)
+    xrel = x - x.max(**kw)
+    exp_xrel = np.exp(xrel)
+    return exp_xrel / exp_xrel.sum(**kw)
 
 
 class NeuralNetwork:
@@ -17,7 +25,7 @@ class NeuralNetwork:
         self.conv3 = keras.layers.Conv2D(32, (3, 3), padding='same', activation='relu')
         self.flatten = keras.layers.Flatten()
         self.policy = keras.layers.Dense(board_size ** 2, activation='softmax')
-        self.value = keras.layers.Dense(1, activation='tanh')
+        self.value = keras.layers.Dense(1, activation='sigmoid')
         self.learning_rate = learning_rate
         self.model = self.build_model()
 
@@ -57,8 +65,6 @@ class NeuralNetwork:
         for col, row in board.legal_moves():
             mask[row][col] = 1
         mask = mask.flatten()
-        # softmax:
-        policy = np.exp(policy) / np.sum(np.exp(policy))
         policy = policy * mask
         policy = policy / np.sum(policy)
         return policy.reshape(self.board_size, self.board_size)
@@ -71,26 +77,28 @@ class NeuralNetwork:
         hex_game = Hex.HexBoard(self.board_size)
         memory_boards = []
         memory_pi = []
-        while hex_game.check_outcome() == hex_game.ONGOING:
+        game_ended = False
+        while not game_ended:
+            if hex_game.check_outcome() != hex_game.ONGOING:
+                game_ended = True
             board_state = np.copy(hex_game.board)
             memory_boards.append(board_state)
-            root = Mcts.MCTS(Hex.HexBoard(self.board_size), iterations=2500).build_tree()
+            root = Mcts.MCTS(hex_game, iterations=1500).build_tree()
             pi = np.array(self.board_size ** 2 * [0])
             for child in root.children:
                 pi[child.move[0] * self.board_size + child.move[1]] = child.visits
-            memory_pi.append(np.exp(pi) / np.sum(np.exp(pi)))
-            random_move = hex_game.legal_moves()[np.random.randint(0, len(hex_game.legal_moves()))]
-            hex_game.make_move(random_move)
+            memory_pi.append(softmax(pi))
+            if not game_ended:
+                random_move = hex_game.legal_moves()[np.random.randint(0, len(hex_game.legal_moves()))]
+                hex_game.make_move(random_move)
+                # print(hex_game)
             hex_game = hex_game
-            print(hex_game)
         z = hex_game.check_outcome()
         if z == hex_game.WHITE:
             z = 0
-        elif z == hex_game.EMPTY:
+        elif z == hex_game.DRAW:
             z = 0.5
         training_data = []
-        # memory_boards = memory_boards[::-1]
-        # memory_pi = memory_pi[::-1]
         for pi, board in zip(memory_pi, memory_boards):
             state = self.get_encoded_board(board)
             training_data.append([state, z, pi])
@@ -104,23 +112,37 @@ class NeuralNetwork:
         :param board_size: the size of the board.
         """
         training_data = []
-        for _ in range(num_of_epochs):
-            print("iteration: ", _ + 1, " out of ", num_of_epochs)
+        for _ in tqdm(range(num_of_epochs), desc="Training", colour="green"):
             training_data += self.create_training_data()
         self.save_train_data(training_data)
         states = np.array([x[0] for x in training_data])
         z = np.array([x[1] for x in training_data])
         PI = np.array([x[2] for x in training_data])
-        print(states.shape)
-        self.model.fit(states, [z, PI], epochs=30000, batch_size=32)
+        # print(states.shape)
+        self.model.fit(states, [z, PI], epochs=1000, batch_size=32)
+        accuracy = self.model.evaluate(states, [z, PI])
+        print("accuracy: ", accuracy)
+        model_json = self.model.to_json()
+        with open("model.json", "w") as json_file:
+            json_file.write(model_json)
+        # serialize weights to HDF5
         self.model.save_weights("model.weights.h5")
+        print("Saved model to disk")
 
-    def fetch_weights(self):
+    def fetch_model(self):
         """
         Fetch the weights of the model.
         :return: The weights of the model.
         """
+        # self.model.load_weights("tmp.weights.h5")
+        # self.model = keras.models.load_model("model.keras")
+        json_file = open('model.json', 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        self.model = keras.models.model_from_json(loaded_model_json)
+        # load weights into new model
         self.model.load_weights("model.weights.h5")
+        print("Loaded model from disk")
 
     def get_model(self):
         """
@@ -146,68 +168,9 @@ def main():
     example of using NeuralNetwork class.
     :return:
     """
-    board_size = 9
-    # hex_game = Hex.HexBoard(board_size)
-    # hex_game.make_move((4, 4))
-    # hex_game.make_move((4, 5))
-    # hex_game.make_move((5, 4))
-    # print(hex_game)
+    board_size = 5
     neural_network = NeuralNetwork(board_size)
-    # state = neural_network.get_encoded_board(hex_game.board)
-    # value, policy = neural_network.model.predict(state)
-    # print("=====================================value=====================================")
-    # print(value)
-    # print("=====================================policy=====================================")
-    # print(policy)
-    # policy = neural_network.get_decoded_policy(policy, hex_game)
-    # print("=====================================policy=====================================")
-    # print(policy.reshape(9, 9))
-    # neural_network.train(1000)
-    neural_network.train(10)
-
-
-# def train(self, num_of_epochs, board_size, batch_size, data, learning_rate=0.01):
-#     for _ in range(num_of_epochs):
-#         hex_game = Hex.HexBoard(board_size)
-#         while hex_game.check_outcome() == hex_game.ONGOING:
-#             mcts = Mcts.MCTS(hex_game, iterations=10000)
-#             move = mcts.choose_move()
-#             hex_game.make_move(move)
-#         z = hex_game.check_outcome()
-#         # train the neural network
-#         # update the weights
-#         # backpropagation
-#
-#
-# def main():
-#     """
-#     simple example of using MCTS for Hex.
-#     """
-#     q = Queue()
-#     mcts = Mcts.MCTS(Hex.HexBoard(9), iterations=5000)
-#     hex_game = Hex.HexBoard(9)
-#     game_screen = GameScreen.Screen(hex_game.board, 20, "red", "blue", q)
-#     t1 = Thread(target=game_screen.run)
-#     t1.start()
-#
-#     while hex_game.check_outcome() == hex_game.ONGOING:
-#         if hex_game.current_player == Hex.HexBoard.BLACK:
-#             mcts.board = hex_game
-#             move = mcts.choose_move()
-#         else:
-#             move = q.get(True, None)
-#         hex_game.make_move(move)
-#         time.sleep(0.2)  # sleep for visual effect
-#     time.sleep(1)
-#     if hex_game.check_outcome() == hex_game.BLACK:
-#         game_screen.winner = "RED"
-#         print("Red wins")
-#     else:
-#         game_screen.winner = "BLUE"
-#         print("Blue wins")
-#     game_screen.game_ends = True
-#
-#     t1.join()
+    neural_network.train(500)
 
 
 if __name__ == "__main__":

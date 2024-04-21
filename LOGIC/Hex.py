@@ -153,9 +153,6 @@ class HexBoard:
         if len(self.game_history) == 0:
             return self.ONGOING
 
-        if len(self.game_history) == self.board_size ** 2:
-            return self.DRAW
-
         last_move = self.game_history[-1]
         player = self.board[last_move[0]][last_move[1]]
         if self.search_for_win_path(player, last_move):
