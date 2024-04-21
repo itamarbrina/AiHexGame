@@ -166,8 +166,8 @@ def main():
     while hex_game.check_outcome() == hex_game.ONGOING:
         if hex_game.current_player == Hex.HexBoard.BLACK:
             puct.board = hex_game
-            # move = puct.choose_move_greedy()
-            move = puct.choose_move()
+            move = puct.choose_move_greedy()
+            # move = puct.choose_move()
         else:
             move = q.get(True, None)
         hex_game.make_move(move)

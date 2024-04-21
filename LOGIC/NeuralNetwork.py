@@ -123,10 +123,10 @@ class NeuralNetwork:
         accuracy = self.model.evaluate(states, [z, PI])
         print("accuracy: ", accuracy)
         model_json = self.model.to_json()
-        with open("model.json", "w") as json_file:
+        with open("./LOGIC/model.json", "w") as json_file:
             json_file.write(model_json)
         # serialize weights to HDF5
-        self.model.save_weights("model.weights.h5")
+        self.model.save_weights("./LOGIC/model.weights.h5")
         print("Saved model to disk")
 
     def fetch_model(self):
@@ -136,12 +136,12 @@ class NeuralNetwork:
         """
         # self.model.load_weights("tmp.weights.h5")
         # self.model = keras.models.load_model("model.keras")
-        json_file = open('model.json', 'r')
+        json_file = open('./LOGIC/model.json', 'r')
         loaded_model_json = json_file.read()
         json_file.close()
         self.model = keras.models.model_from_json(loaded_model_json)
         # load weights into new model
-        self.model.load_weights("model.weights.h5")
+        self.model.load_weights("./LOGIC/model.weights.h5")
         print("Loaded model from disk")
 
     def get_model(self):
@@ -156,7 +156,7 @@ class NeuralNetwork:
         Save the training data to a file.
         :param training_data: The training data.
         """
-        with open("training_data.txt", "w") as file:
+        with open("./LOGIC/training_data.txt", "w") as file:
             for data in training_data:
                 file.write(str(data) + "\n")
         # close the file
